@@ -151,7 +151,7 @@ namespace RSCode
    int i, j, u, q;
     int[] d = new int[nn-kk+2];
     int[] l = new int[nn-kk+2];
-    int[] u_lu = int[nn-kk+2];
+    int[] u_lu = new int[nn-kk+2];
     int[] s = new int[nn-kk+1];
     int[,] elp = new int [nn-kk+2, nn-kk];
     int count=0, syn_error=0;
@@ -343,7 +343,7 @@ namespace RSCode
 
             /* generate the Galois Field GF(2**mm) */
             coder.generate_gf();
-            Console.WriteLine("Look-up tables for GF(2**{0:D})\n", mm);
+            Console.WriteLine("Look-up tables for GF(2**{0:D})\n", coder.mm);
             Console.WriteLine("  i   alpha_to[i]  index_of[i]\n");
             for (i = 0; i <= coder.nn; i++)
                 Console.WriteLine("{0:D}      {1:D}          {2:D}\n", i, coder.alpha_to[i], coder.index_of[i]);
@@ -394,9 +394,10 @@ namespace RSCode
             Console.WriteLine("Results for Reed-Solomon code (n={0:D}, k={1:D}, t= {2:D})\n\n", coder.nn, coder.kk, coder.tt);
             Console.WriteLine("  i  data[i]   recd[i](decoded)   (data, recd in polynomial form)\n");
             for (i = 0; i < coder.nn - coder.kk; i++)
-                Console.WriteLine("%3d    %3d      %3d\n", i, coder.bb[i], coder.recd[i]);
+                Console.WriteLine("{0:D}    {1:D}      {2:D}\n", i, coder.bb[i], coder.recd[i]);
             for (i = coder.nn - coder.kk; i < coder.nn; i++)
-                Console.WriteLine("%3d    %3d      %3d\n", i, coder.data[i - coder.nn + coder.kk], coder.recd[i]);
+                Console.WriteLine("{0:D}    {1:D}      {2:D}\n", i, coder.data[i - coder.nn + coder.kk], coder.recd[i]);
+            Console.ReadKey();
         }
     }
 }
