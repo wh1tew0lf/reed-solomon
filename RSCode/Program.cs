@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Collections;
 
 namespace RSCode {
     class RSCoder {
@@ -20,7 +17,9 @@ namespace RSCode {
         int[] alpha_to, index_of, gg;
         int[] recd, data, bb;
 
-        public RSCoder() {
+        public RSCoder(int t = 3) {
+            tt = t;
+            kk = nn - 2 * tt;
             pp = new int[mm + 1];
             pp[0] = 1;
             pp[1] = 1;
@@ -35,6 +34,9 @@ namespace RSCode {
             recd = new int[nn];
             data = new int[kk];
             bb = new int[nn - kk];
+
+            generate_gf();
+            gen_poly();
         }
 
         /// <summary>
@@ -331,10 +333,158 @@ namespace RSCode {
                         recd[i] = 0;
         }
 
-        static void Main(string[] args) {
-            int i;
+        public static byte[] toOct(byte[] data, int m = 3) {
+            byte[] input = new byte[(int)Math.Ceiling(data.Length * 8.0 / m)];
+            for (int i = 1, curr = data[0], j = 1; i < input.Length + 1; ++i) {
+                if ((j * 8 < i * m) && (j < data.Length)) {
+                    ++j;
+                    curr = (curr << 8) + data[j - 1];
+                }
 
-            RSCoder coder = new RSCoder();
+                input[i - 1] = (byte)(curr >> (j * 8 - i * m));
+                curr -= input[i - 1] << (j * 8 - i * m);
+            }
+            return input;
+        }
+
+        public static byte[] toByte(byte[] data, int m = 3) {
+            byte[] decoded = new byte[(int)Math.Floor(data.Length * m / 8.0)];
+
+            for (int i = 1, curr = 0, j = 1; i < data.Length + 1; ++i) {
+                curr = (curr << m) + data[i - 1];
+                if ((j * 8 < i * m) && (j < decoded.Length)) {
+                    decoded[j - 1] = (byte)(curr >> (i * m - j * 8));
+                    curr -= decoded[j - 1] << (i * m - j * 8);
+                    ++j;
+                }
+            }
+            return decoded;
+        }
+
+        public static byte[] encode(byte[] data, int t = 3) {
+            if (t < 1 || t > 5) {
+                throw new ArgumentOutOfRangeException();
+            }
+
+            RSCoder coder = new RSCoder(t);
+
+            byte[] dataWithLen = new byte[data.Length + sizeof(int)];
+            int size = data.Length;
+            for (int i = 0; i < sizeof(int); ++i) {
+                dataWithLen [i] = (byte)(size % 256);
+                size /= 256;
+            }
+            for (int i = 0; i < data.Length; ++i) {
+                dataWithLen [i + sizeof(int)] = data [i];
+            }
+
+            byte[] input = toOct(dataWithLen, coder.mm);
+
+            int blocksCnt = (int)Math.Ceiling(input.Length / (double)coder.kk);
+            byte[] output = new byte[blocksCnt * coder.nn];
+            for (int i = 0; i < blocksCnt; ++i) {
+                for (int j = 0; j < coder.kk; ++j) {
+                    coder.data[j] = (input.Length > j + i * coder.kk) ? input[j + i * coder.kk] : 0;
+                }
+                coder.encode_rs();
+                
+                for (int j = 0; j < coder.nn - coder.kk; ++j) {
+                    output[j + i * coder.nn] = (byte)coder.bb[j];
+                }
+
+                for (int j = 0; j < coder.kk; ++j) {
+                    output[j + i * coder.nn + coder.nn - coder.kk] = (byte)coder.data[j];
+                }
+            }
+            return toByte(output, coder.mm);
+        }
+
+        public static byte[] decode(byte[] data, int t = 3) {
+            if (t < 1 || t > 5) {
+                throw new ArgumentOutOfRangeException();
+            }
+
+            RSCoder coder = new RSCoder(t);
+
+            byte[] input = toOct(data, coder.mm);
+
+            int maxEl = (int)Math.Pow(2, coder.mm);
+            int blocksCnt = (int)Math.Ceiling(input.Length / (double)coder.nn);
+            byte[] output = new byte[blocksCnt * coder.kk];
+            for (int i = 0; i < blocksCnt; ++i) {
+                for (int j = 0; j < coder.nn; ++j) {
+                    coder.recd[j] = (input.Length > j + i * coder.nn) ? input[j + i * coder.nn] : 0;
+                }
+                coder.decode_rs();
+
+                for (int j = 0; j < coder.kk; ++j) {
+                    output[j + i * coder.kk] = (byte)((maxEl + coder.index_of[coder.recd[j + coder.nn - coder.kk]]) % maxEl);
+                }
+            }
+
+            output = toByte(output, coder.mm);
+
+            int size = 0;
+            for (int i = sizeof(int) - 1; i >= 0; --i) {
+                size = size * 256 + output [i];
+            }
+
+            if ((size <= 0) || (size > output.Length + sizeof(int))) {
+                throw new Exception(String.Format("Incorrect size = {0:D}!", size));
+            }
+
+            byte[] decoded = new byte[size];
+            
+            for (int i = 0; i < decoded.Length; ++i) {
+                decoded [i] = output [i + sizeof(int)];
+            }
+
+            return decoded;
+        }
+
+        private static void WriteBits(BitArray bits, int sep = 8) {
+            int i = 0;
+            foreach (bool b in bits) {
+                Console.Write (b ? 1 : 0);
+                if (++i % sep == 0) {
+                    Console.Write(" ");
+                }
+                if (i % 40 == 0) {
+                    Console.WriteLine();
+                }
+            }
+            Console.WriteLine();
+        }
+
+        public static void Main(string[] args) {
+            Random rnd = new Random();
+            for (int i = 0; i < 100; ++i) {
+                byte[] data = new byte[1 + rnd.Next() % 4096];
+                for (int j = 0; j < data.Length; ++j) {
+                    data[j] = rnd.Next() % 16;
+                }
+
+                byte[] decoded = decode(encode(data));
+
+                if (decoded.Length != data.Length) {
+                    Console.WriteLine("Размеры не совпали! data.Len = {0:D} decoded.Len = {1:D}", data.Length, decoded.Length);
+                    break;
+                } else {
+                    for (int j = 0; j < data.Length; ++j) {
+                        Console.WriteLine("Несовпадение в позиции {0:D}", j);
+                    }
+                }
+            }
+
+        }
+
+        static void Main2(string[] args) {
+
+
+            int i;
+            int t = 5;
+
+            RSCoder coder = new RSCoder(t);
 
             /* generate the Galois Field GF(2**mm) */
             coder.generate_gf();
@@ -351,35 +501,29 @@ namespace RSCode {
             /* for known data, stick a few numbers into a zero codeword. Data is in
                polynomial form.
             */
+            Random rnd = new Random();
             for (i = 0; i < coder.kk; i++)
-                coder.data[i] = 0;
-
-            /* for example, say we transmit the following message (nothing special!) */
-            coder.data[0] = 8;
-            coder.data[1] = 6;
-            coder.data[2] = 8;
-            coder.data[3] = 1;
-            coder.data[4] = 2;
-            coder.data[5] = 4;
-            coder.data[6] = 15;
-            coder.data[7] = 9;
-            coder.data[8] = 9;
+                coder.data[i] = rnd.Next() % 16;
 
             /* encode data[] to produce parity in bb[].  Data input and parity output
                is in polynomial form
             */
             coder.encode_rs();
+            
+
+            /* if you want to test the program, corrupt some of the elements of recd[]
+               here. This can also be done easily in a debugger. */
+            /* Again, lets say that a middle element is changed */
+            for (i = 0; i < t; ++i) {
+                coder.data[i] = 3;
+            }
+
 
             /* put the transmitted codeword, made up of data plus parity, in recd[] */
             for (i = 0; i < coder.nn - coder.kk; i++)
                 coder.recd[i] = coder.bb[i];
             for (i = 0; i < coder.kk; i++)
                 coder.recd[i + coder.nn - coder.kk] = coder.data[i];
-
-            /* if you want to test the program, corrupt some of the elements of recd[]
-               here. This can also be done easily in a debugger. */
-            /* Again, lets say that a middle element is changed */
-            coder.data[coder.nn - coder.nn / 2] = 3;
 
 
             for (i = 0; i < coder.nn; i++)
