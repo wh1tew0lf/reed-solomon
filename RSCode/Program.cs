@@ -4,6 +4,8 @@ using System.Collections;
 namespace RSCode {
     class RSCoder {
 
+        public static bool debug = false;
+
         int mm = 4;
         /* RS code over GF(2**4) - change to suit */
         int nn = 15;
@@ -170,6 +172,9 @@ namespace RSCode {
             }
 
             if (syn_error != 0) {       // if errors, try and correct
+                if (debug) {
+                    Console.WriteLine("There are errors");
+                }
                 /* compute the error location polynomial via the Berlekamp iterative algorithm,
                    following the terminology of Lin and Costello :   d[u] is the 'mu'th
                    discrepancy, where u='mu'+1 and 'mu' (the Greek letter!) is the step number
@@ -201,7 +206,7 @@ namespace RSCode {
                             elp[u, i] = index_of[elp[u, i]];
                         }
                     } else {// search for words with greatest u_lu[q] for which d[q]!=0
-                        q = u-1 ;
+                        q = u - 1;
                         while ((d[q]==-1) && (q>0))
                             q--;
                         // have found first non-zero d[q]
@@ -313,28 +318,44 @@ namespace RSCode {
                                 recd[loc[i]] ^= err[loc[i]];  // recd[i] must be in polynomial form
                             }
                         }
-                    } else    // no. roots != degree of elp => >tt errors and cannot solve
-                        for (i=0; i<nn; i++)        // could return error flag if desired
-                            if (recd[i] != -1)        // convert recd[] to polynomial form
+                    } else {    // no. roots != degree of elp => >tt errors and cannot solve
+                        for (i=0; i<nn; i++) {        // could return error flag if desired
+                            if (recd[i] != -1) {        // convert recd[] to polynomial form
                                 recd[i] = alpha_to[recd[i]];
-                            else
+                            } else {
                                 recd[i] = 0;     // just output received codeword as is
-                } else         // elp has degree has degree >tt hence cannot solve
-                    for (i=0; i<nn; i++)       // could return error flag if desired
-                        if (recd[i] != -1)        // convert recd[] to polynomial form
+                            }
+                        }
+                        if (debug) {
+                            Console.WriteLine("Can not solve 1");
+                        }
+                    }
+                } else {         // elp has degree has degree >tt hence cannot solve
+                    for (i=0; i<nn; i++) {       // could return error flag if desired
+                        if (recd[i] != -1) {       // convert recd[] to polynomial form
                             recd[i] = alpha_to[recd[i]];
-                        else
+                        } else {
                             recd[i] = 0;     // just output received codeword as is
-            } else       // no non-zero syndromes => no errors: output received codeword
-                for (i=0; i<nn; i++)
-                    if (recd[i] != -1)        // convert recd[] to polynomial form
+                        }
+                    }
+                    if (debug) {
+                        Console.WriteLine("Can not solve 2");
+                    }
+                }
+            } else {       // no non-zero syndromes => no errors: output received codeword
+                for (i=0; i<nn; i++) {
+                    if (recd[i] != -1) {        // convert recd[] to polynomial form
                         recd[i] = alpha_to[recd[i]];
-                    else
+                    } else {
                         recd[i] = 0;
+                    }
+                }
+            }
         }
 
         public static byte[] toOct(byte[] data, int m = 3) {
             byte[] input = new byte[(int)Math.Ceiling(data.Length * 8.0 / m)];
+            if (debug) Console.WriteLine("\ttoOct {0:D} -> {1:D}", data.Length, input.Length);
             for (int i = 1, curr = data[0], j = 1; i < input.Length + 1; ++i) {
                 if ((j * 8 < i * m) && (j < data.Length)) {
                     ++j;
@@ -348,11 +369,11 @@ namespace RSCode {
         }
 
         public static byte[] toByte(byte[] data, int m = 3) {
-            byte[] decoded = new byte[(int)Math.Floor(data.Length * m / 8.0)];
-
+            byte[] decoded = new byte[(int)Math.Ceiling(data.Length * m / 8.0)];
+            if (debug) Console.WriteLine("\ttoByte {0:D} -> {1:D}", data.Length, decoded.Length);
             for (int i = 1, curr = 0, j = 1; i < data.Length + 1; ++i) {
                 curr = (curr << m) + data[i - 1];
-                if ((j * 8 < i * m) && (j < decoded.Length)) {
+                if ((j * 8 <= i * m) && (j < decoded.Length + 1)) {
                     decoded[j - 1] = (byte)(curr >> (i * m - j * 8));
                     curr -= decoded[j - 1] << (i * m - j * 8);
                     ++j;
@@ -383,18 +404,25 @@ namespace RSCode {
             int blocksCnt = (int)Math.Ceiling(input.Length / (double)coder.kk);
             byte[] output = new byte[blocksCnt * coder.nn];
             for (int i = 0; i < blocksCnt; ++i) {
+                if (debug) Console.WriteLine("INPUT[{0:D}]", i);
                 for (int j = 0; j < coder.kk; ++j) {
                     coder.data[j] = (input.Length > j + i * coder.kk) ? input[j + i * coder.kk] : 0;
+                    if (debug) Console.Write("{0:D} ",coder.data[j]);
                 }
+                if (debug) Console.WriteLine();
                 coder.encode_rs();
                 
+                if (debug) Console.WriteLine("OUTPUT[{0:D}]", i);
                 for (int j = 0; j < coder.nn - coder.kk; ++j) {
                     output[j + i * coder.nn] = (byte)coder.bb[j];
+                    if (debug) Console.Write("{0:D} ",output[j + i * coder.nn]);
                 }
 
                 for (int j = 0; j < coder.kk; ++j) {
                     output[j + i * coder.nn + coder.nn - coder.kk] = (byte)coder.data[j];
+                    if (debug) Console.Write("{0:D} ", output[j + i * coder.nn + coder.nn - coder.kk]);
                 }
+                if (debug) Console.WriteLine();
             }
             return toByte(output, coder.mm);
         }
@@ -408,18 +436,23 @@ namespace RSCode {
 
             byte[] input = toOct(data, coder.mm);
 
-            int maxEl = (int)Math.Pow(2, coder.mm);
             int blocksCnt = (int)Math.Ceiling(input.Length / (double)coder.nn);
             byte[] output = new byte[blocksCnt * coder.kk];
             for (int i = 0; i < blocksCnt; ++i) {
+                if (debug) Console.WriteLine("INPUT[{0:D}]", i);
                 for (int j = 0; j < coder.nn; ++j) {
-                    coder.recd[j] = (input.Length > j + i * coder.nn) ? input[j + i * coder.nn] : 0;
+                    coder.recd[j] = (input.Length > j + i * coder.nn) ? coder.index_of[input[j + i * coder.nn]] : 0;
+                    if (debug) Console.Write("{0:D} ", coder.recd[j]);
                 }
+                if (debug) Console.WriteLine();
                 coder.decode_rs();
 
+                if (debug) Console.WriteLine("OUTPUT[{0:D}]", i);
                 for (int j = 0; j < coder.kk; ++j) {
-                    output[j + i * coder.kk] = (byte)((maxEl + coder.index_of[coder.recd[j + coder.nn - coder.kk]]) % maxEl);
+                    output[j + i * coder.kk] = (byte)(coder.recd[j + coder.nn - coder.kk]);
+                    if (debug) Console.Write("{0:D} ", output[j + i * coder.kk]);
                 }
+                if (debug) Console.WriteLine();
             }
 
             output = toByte(output, coder.mm);
@@ -459,12 +492,22 @@ namespace RSCode {
         public static void test() {
             Random rnd = new Random();
             for (int i = 0; i < 100; ++i) {
-                byte[] data = new byte[1 + rnd.Next() % 6];
+                byte[] data = new byte[1 + rnd.Next() % 4096];
                 for (int j = 0; j < data.Length; ++j) {
                     data[j] = (byte)(rnd.Next() % 256);
                 }
 
-                byte[] decoded = decode(encode(data));
+                byte[] decoded = null;
+                try {
+                    decoded = decode(encode(data));
+                } catch(Exception e) {
+                    Console.Write("data = {");
+                    for (int j = 0; j < data.Length; ++j) {
+                        Console.Write("{0:D}, ", data[j]);
+                    }
+                    Console.WriteLine("};");
+                    break;
+                }
 
                 Console.WriteLine("I: {0:D}, Length: {1:D}", i, data.Length);
 
@@ -492,19 +535,29 @@ namespace RSCode {
         }
 
         public static void Main(string[] args) {
-            byte[] data = { 248, 207, 134, 72, 69 };
-            byte[] decoded = decode(encode(data));
+            test(); /*
+            byte[] data = { 64, 21 };
+            byte[] encoded = encode(data);
+            byte[] decoded = decode(encoded);
 
             Console.Write("data: ");
             for (int j = 0; j < data.Length; ++j) {
                 Console.Write("{0:D}, ", data[j]);
             }
+            Console.WriteLine();
 
-            Console.Write("\ndecoded: ");
+            Console.Write("decoded: ");
             for (int j = 0; j < decoded.Length; ++j) {
                 Console.Write("{0:D}, ", decoded[j]);
             }
             Console.WriteLine();
+
+            Console.Write("encoded: ");
+            for (int j = 0; j < encoded.Length; ++j) {
+                Console.Write("{0:D}, ", encoded[j]);
+            }
+            Console.WriteLine();
+            //*/
         }
 
     }
