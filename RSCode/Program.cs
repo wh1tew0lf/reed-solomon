@@ -166,7 +166,6 @@ namespace RSCode {
                     syn_error = 1;        // set flag if non-zero syndrome => error
                 s[i] = index_of[s[i]];
             }
-            ;
 
             if (syn_error != 0) {       // if errors, try and correct
                 /* compute the error location polynomial via the Berlekamp iterative algorithm,
@@ -199,7 +198,8 @@ namespace RSCode {
                             elp[u + 1, i] = elp[u, i];
                             elp[u, i] = index_of[elp[u, i]];
                         }
-                    } else {// search for words with greatest u_lu[q] for which d[q]!=0q = u-1 ;
+                    } else {// search for words with greatest u_lu[q] for which d[q]!=0
+                        q = u-1 ;
                         while ((d[q]==-1) && (q>0))
                             q--;
                         // have found first non-zero d[q]
@@ -263,7 +263,8 @@ namespace RSCode {
                                 reg[j] = (reg[j] + j) % nn;
                                 q ^= alpha_to[reg[j]];
                             }
-                        if (0 == q) {        // store root and error location number indicesroot[count] = i;
+                        if (0 == q) {        // store root and error location number indices
+                            root[count] = i;
                             loc[count] = nn - i;
                             count++;
                         }
