@@ -456,90 +456,56 @@ namespace RSCode {
             Console.WriteLine();
         }
 
-        public static void Main(string[] args) {
+        public static void test() {
             Random rnd = new Random();
             for (int i = 0; i < 100; ++i) {
-                byte[] data = new byte[1 + rnd.Next() % 4096];
+                byte[] data = new byte[1 + rnd.Next() % 6];
                 for (int j = 0; j < data.Length; ++j) {
-                    data[j] = rnd.Next() % 16;
+                    data[j] = (byte)(rnd.Next() % 256);
                 }
 
                 byte[] decoded = decode(encode(data));
+
+                Console.WriteLine("I: {0:D}, Length: {1:D}", i, data.Length);
 
                 if (decoded.Length != data.Length) {
                     Console.WriteLine("Размеры не совпали! data.Len = {0:D} decoded.Len = {1:D}", data.Length, decoded.Length);
                     break;
                 } else {
+                    bool error = false;
                     for (int j = 0; j < data.Length; ++j) {
-                        Console.WriteLine("Несовпадение в позиции {0:D}", j);
+                        if (data[j] != decoded[j]) {
+                            Console.WriteLine("Несовпадение в позиции {0:D} ({1:D} != {2:D})", j, data[j], decoded[j]);
+                            error = true;
+                        }
+                    }
+                    if (error) {
+                        Console.Write("data = {");
+                        for (int j = 0; j < data.Length; ++j) {
+                            Console.Write("{0:D}, ", data[j]);
+                        }
+                        Console.WriteLine("};");
+                        break;
                     }
                 }
             }
-
         }
 
-        static void Main2(string[] args) {
+        public static void Main(string[] args) {
+            byte[] data = { 248, 207, 134, 72, 69 };
+            byte[] decoded = decode(encode(data));
 
-
-            int i;
-            int t = 5;
-
-            RSCoder coder = new RSCoder(t);
-
-            /* generate the Galois Field GF(2**mm) */
-            coder.generate_gf();
-            Console.WriteLine("Look-up tables for GF(2**{0:D})\n", coder.mm);
-            Console.WriteLine("  i   alpha_to[i]  index_of[i]\n");
-            for (i = 0; i <= coder.nn; i++)
-                Console.WriteLine("{0:D}      {1:D}          {2:D}\n", i, coder.alpha_to[i], coder.index_of[i]);
-            Console.WriteLine("\n\n");
-
-            /* compute the generator polynomial for this RS code */
-            coder.gen_poly();
-
-
-            /* for known data, stick a few numbers into a zero codeword. Data is in
-               polynomial form.
-            */
-            Random rnd = new Random();
-            for (i = 0; i < coder.kk; i++)
-                coder.data[i] = rnd.Next() % 16;
-
-            /* encode data[] to produce parity in bb[].  Data input and parity output
-               is in polynomial form
-            */
-            coder.encode_rs();
-            
-
-            /* if you want to test the program, corrupt some of the elements of recd[]
-               here. This can also be done easily in a debugger. */
-            /* Again, lets say that a middle element is changed */
-            for (i = 0; i < t; ++i) {
-                coder.data[i] = 3;
+            Console.Write("data: ");
+            for (int j = 0; j < data.Length; ++j) {
+                Console.Write("{0:D}, ", data[j]);
             }
 
-
-            /* put the transmitted codeword, made up of data plus parity, in recd[] */
-            for (i = 0; i < coder.nn - coder.kk; i++)
-                coder.recd[i] = coder.bb[i];
-            for (i = 0; i < coder.kk; i++)
-                coder.recd[i + coder.nn - coder.kk] = coder.data[i];
-
-
-            for (i = 0; i < coder.nn; i++)
-                coder.recd[i] = coder.index_of[coder.recd[i]];          /* put recd[i] into index form */
-
-            /* decode recv[] */
-            coder.decode_rs();         /* recd[] is returned in polynomial form */
-
-            /* print out the relevant stuff - initial and decoded {parity and message} */
-            Console.WriteLine("Results for Reed-Solomon code (n={0:D}, k={1:D}, t= {2:D})\n\n", coder.nn, coder.kk, coder.tt);
-            Console.WriteLine("  i  data[i]   recd[i](decoded)   (data, recd in polynomial form)\n");
-            for (i = 0; i < coder.nn - coder.kk; i++)
-                Console.WriteLine("{0:D}    {1:D}      {2:D}\n", i, coder.bb[i], coder.recd[i]);
-            for (i = coder.nn - coder.kk; i < coder.nn; i++)
-                Console.WriteLine("{0:D}    {1:D}      {2:D}\n", i, coder.data[i - coder.nn + coder.kk], coder.recd[i]);
-            Console.ReadKey();
+            Console.Write("\ndecoded: ");
+            for (int j = 0; j < decoded.Length; ++j) {
+                Console.Write("{0:D}, ", decoded[j]);
+            }
+            Console.WriteLine();
         }
+
     }
 }
